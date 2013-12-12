@@ -10,7 +10,7 @@ The first difference is server-side usually via Image-Tiles
 or client-side by passing datapoints to the browser and
 generating the Heatmap on the client-side.
 
-The first method requires downloading a lot of data, especially if take high resolution displays into account. It also makes it neccessary to have prerendering processes in place. This makes it impossible to change the query for acquiring the heatmap data on the fly. 
+The first method requires downloading a lot of data, especially if you take high resolution displays into account. It also makes it neccessary to have prerendering processes in place. This makes it impossible to change the query for acquiring the heatmap data on the fly. 
 
 The second method (if the data is not tile-based) also requires download a lot of point-data. More problematic is the actually rendering which costs time and resources, especially on mobile devices. Another problem of this method is scalability, if the number of data-points for the visible area is too big, renedering is likely to fail on mobile devices.
 
