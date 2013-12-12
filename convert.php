@@ -44,12 +44,8 @@ if($step==0){
 	$sql = 'ALTER TABLE `'.$db_table.'` ADD `validconversion` tinyint(1) NOT NULL, ADD `x` DOUBLE(21,12) NOT NULL, ADD `y` DOUBLE(21,12) NOT NULL, ADD `x0` DOUBLE(21,12) NOT NULL, ADD `y0` DOUBLE(21,12) NOT NULL';
 	for($i = 1; $i<21; $i++){ $sql .=  ', ADD `z'.$i.'` BIGINT(20) NOT NULL'; }
 	for($i = 1; $i<21; $i++){ $sql .=  ', ADD `zh'.$i.'` BIGINT(20) NOT NULL'; }
-	$result = mysql_query($sql, $link);
-	if (!$result) {
-	    echo "DB Error, could not execute request\n";
-	    echo 'MySQL Error: ' . mysql_error();
-	    exit;
-	}else{
+	$result = query_mysql($sql, $link);
+	if ($result) {
 		$message .= 'Datebase was successfully modified!<br />';
 		$message .= '<a href="convert.php?step=2">Continue</a>';
 	}
@@ -57,11 +53,11 @@ if($step==0){
 
 //Flag Rows that have no valid latitude / longitude values
 	$sql = 'UPDATE `'.$db_table.'` SET `validconversion` = 1';
-	$result = mysql_query($sql, $link);
+	$result = query_mysql($sql, $link);
 	mysql_free_result($result);
 
 	$sql = 'UPDATE `'.$db_table.'` SET `validconversion` = 0 WHERE `'.$db_lat.'` = 0 OR `'.$db_lng.'` = 0 OR `'.$db_lng.'` > 180 OR `'.$db_lat.'` > 90';
-	$result = mysql_query($sql, $link);
+	$result = query_mysql($sql, $link);
 	mysql_free_result($result);
 
 }else if($step==2){
@@ -69,21 +65,12 @@ if($step==0){
 //In the First Conversion Step we convert all Latitude/Longitude values to WebMercator
 
 	$sql = 'SELECT `'.$db_id.'`, `'.$db_lat.'`, `'.$db_lng.'` FROM `'.$db_table.'` ORDER BY `'.$db_id.'` ASC LIMIT '.(($page-1)*$db_max).', '.$db_max;
-	$result = mysql_query($sql, $link);
-	if (!$result) {
-	    echo "DB Error, could execute request\n";
-	    echo 'MySQL Error: ' . mysql_error();
-	    exit;
-	}else{
+	$result = query_mysql($sql, $link);
+	if ($result) {
 		while ($row = mysql_fetch_assoc($result)) {
 	    	$latlon = ToWebMercator($row[$db_lat], $row[$db_lng]);
 	    	$sql = 'UPDATE `'.$db_table.'` SET `x` = '.$latlon[1].', `y` = '.$latlon[0].', `x0` = '.($latlon[1]+$max).', `y0` = '.($latlon[0]+$max).' WHERE `'.$db_id.'` = '.$row[$db_id];
-			$update = mysql_query($sql, $link);
-			if (!$update) {
-	    		echo "DB Error, could not execute request\n";
-	    		echo 'MySQL Error: ' . mysql_error();
-	    		exit;
-			}
+			$update = query_mysql($sql, $link);
 			mysql_free_result($update);
 		}
 		if(($page*$db_max) > $db_size){
@@ -101,12 +88,8 @@ if($step==0){
 //Rasterizing locations into the tiled grid
 
 	$sql = 'SELECT `'.$db_id.'`, `x0`, `y0` FROM `'.$db_table.'` WHERE `validconversion` = 1 ORDER BY `'.$db_id.'` ASC LIMIT '.(($page-1)*$db_max).', '.$db_max;
-	$result = mysql_query($sql, $link);
-	if (!$result) {
-	    echo "DB Error, could execute request\n";
-	    echo 'MySQL Error: ' . mysql_error();
-	    exit;
-	}else{
+	$result = query_mysql($sql, $link);
+	if ($result) {
 		while ($row = mysql_fetch_assoc($result)) {
 	    	//normal tiles
 			for($i = 0; $i<20; $i++){
@@ -114,12 +97,7 @@ if($step==0){
 				$y = ceil($row["y0"]/$step_size[19-$i]);
 				$cell = (($y-1)*$steps[19-$i]+$x); //-1
 				$sql = 'UPDATE `'.$db_table.'` SET `z'.($i+1).'` = '.$cell.' WHERE `'.$db_id.'` = '.$row[$db_id];
-				$update = mysql_query($sql, $link);
-				if (!$update) {
-		    		echo "DB Error, could not execute request\n";
-		    		echo 'MySQL Error: ' . mysql_error();
-		    		exit;
-				}
+				$update = query_mysql($sql, $link);
 				mysql_free_result($update);
 			}
 
@@ -133,12 +111,7 @@ if($step==0){
 				}
 				$cell = (($y-1)*$steps[19-$i]+$x); //-1
 				$sql = 'UPDATE `'.$db_table.'` SET `zh'.($i+1).'` = '.$cell.' WHERE `'.$db_id.'` = '.$row[$db_id];
-				$update = mysql_query($sql, $link);
-				if (!$update) {
-		    		echo "DB Error, could not execute request\n";
-		    		echo 'MySQL Error: ' . mysql_error();
-		    		exit;
-				}
+				$update = query_mysql($sql, $link);
 				mysql_free_result($update);
 			}
 
@@ -146,8 +119,8 @@ if($step==0){
 		if(($page*$db_max) > $db_size){
 			$message .= 'Rasterization successfully!<br />';
 			$message .= '<a href="convert.php?step=4">Continue</a>';
-			$message .= $page.'/'.ceil($db_size/$db_max).'<br />';
 		}else{
+			$message .= $page.'/'.ceil($db_size/$db_max).'<br />';
 			$redirect = 'convert.php?step=3&page='.($page+1);
 		}
 	}
@@ -155,43 +128,51 @@ if($step==0){
 
 }else if($step==4){
 /*------------------- STEP #4 -------------------*/
+//Finally we need to find out the maximum amount of locations per tile per zoom level and store it in a new database.
+
+//Create new database if it doesn't exists yet
+
+	$sql = 'CREATE TABLE IF NOT EXISTS `'.$db_max_table.'` (`id` int(11) NOT NULL AUTO_INCREMENT, `zoom` int(11) NOT NULL, `key` text COLLATE latin1_german2_ci NOT NULL, `value` text COLLATE latin1_german2_ci NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB  DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci';
+	$result = query_mysql($sql, $link);
+	mysql_free_result($result);
+
+//Clear Database
+	$sql = 'TRUNCATE TABLE `'.$db_max_table;
+	$result = query_mysql($sql, $link);
+	mysql_free_result($result);
+
+//Now add zoom level values
+	for($i=1; $i<21; $i++){
+		$sql = 'SELECT COUNT(*) FROM `'.$db_table.'` WHERE `validconversion` = 1 GROUP BY `z'.$i.'` ORDER BY COUNT(*) DESC LIMIT 0,1';
+		$result = query_mysql($sql, $link);
+		if($result) {
+			while ($row = mysql_fetch_array($result)) {
+				$sql = 'INSERT INTO `'.$db_max_table.'` (`zoom`, `value`, `key`)VALUES('.$i.', '.$row[0].', "max")';
+				$insert = query_mysql($sql, $link);
+				mysql_free_result($insert);
+			}
+		}
+		$sql = 'SELECT COUNT(*) FROM `'.$db_table.'` WHERE `validconversion` = 1 GROUP BY `zh'.$i.'` ORDER BY COUNT(*) DESC LIMIT 0,1';
+		$result = query_mysql($sql, $link);
+		if ($result) {
+			while ($row = mysql_fetch_array($result)) {
+				$sql = 'INSERT INTO `'.$db_max_table.'` (`zoom`, `value`, `key`)VALUES('.$i.', '.$row[0].', "maxh")';
+				$insert = query_mysql($sql, $link);
+				mysql_free_result($insert);
+			}
+		}
+		mysql_free_result($result);
+	}
+
+	$message .= 'Summary done!<br />';
+	$message .= '<a href="convert.php?step=5">Continue</a>';
+
+}else if($step==5){
+/*------------------- STEP #5 -------------------*/
 //YAY we are done.
 	$message .= 'We are done!<br />';
 	$message .= 'To see if everything worked out, take a look at the example-implementations:<br />';
 	$message .= '<a href="examples/index.html">Examples</a>';
-}
-
-/*------------------- CONVERSION FUNCTIONS -------------------*/
-
-function ToWebMercator($mercatorY_lat, $mercatorX_lng){
-    if((abs($mercatorX_lng) > 180 || abs($mercatorY_lat) > 90)){
-        return;
-	}
-
-    $x = 6378137.0 * ($mercatorX_lng * 0.017453292519943295);
-    $a = $mercatorY_lat * 0.017453292519943295;
-    $y = 3189068.5 * log((1.0 + sin($a)) / (1.0 - sin($a)));
-
-    return array($y, $x);
-}
-
-function ToGeographic($mercatorY_lat, $mercatorX_lng){
-	global $max;
-    if ((abs($mercatorX_lng) > $max) || (abs($mercatorY_lat) > $max)){
-    	return;
-    }
-
-    $x = $mercatorX_lng;
-    $y = $mercatorY_lat;
-    $num3 = $x / 6378137.0;
-    $num4 = $num3 * 57.295779513082323;
-    $num5 = floor((($num4 + 180.0) / 360.0));
-    $num6 = $num4 - ($num5 * 360.0);
-    $num7 = 1.5707963267948966 - (2.0 * atan(exp((-1.0 * $y) / 6378137.0)));
-    $mercatorX_lng = $num6;
-    $mercatorY_lat = $num7 * 57.295779513082323;
-
-    return array($mercatorY_lat, $mercatorX_lng);
 }
 
 ?>
