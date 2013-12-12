@@ -5,7 +5,7 @@ A new approach for developing realtime heatmaps for mobile devices
 
 ## Setup
 
-# Requirements
+### Requirements
 
 - PHP
 - MySQL
