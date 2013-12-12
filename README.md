@@ -3,6 +3,30 @@ HeatTiles
 
 A new approach for developing realtime heatmaps for mobile devices
 
+## Why another way for generating Heatmaps?
+
+There are different ways for generating Heatmaps. 
+The first difference is server-side usually via Image-Tiles 
+or client-side by passing datapoints to the browser and
+generating the Heatmap on the client-side.
+
+The first method requires downloading a lot of data, especially if take high resolution displays into account. It also makes it neccessary to have prerendering processes in place. This makes it impossible to change the query for acquiring the heatmap data on the fly. 
+
+The second method (if the data is not tile-based) also requires download a lot of point-data. More problematic is the actually rendering which costs time and resources, especially on mobile devices. Another problem of this method is scalability, if the number of data-points for the visible area is too big, renedering is likely to fail on mobile devices.
+
+### New Approach 
+
+The new approach is trying to get best of both worlds:
+
+First the data in the location-database is converted from a Geographic-Coordinate-System to a Web-Mercator-Projection. Then the origin of the coordinate-system is set into the upper left, removing the negative range and speeding up our query requests. In the next phase the data is tiled, storing tile-location for every zoom-level for every data-point.
+The last step is important as by now we can query a certain region on the map and group the data-points into tiles. Depending on the amount of data and the amount of detail we want to reach, we can switch between zoom-levels.
+
+This data can then easily be used in existing visualization-libraries or you can directly create geo-json files that hold the visualization.
+
+Using geojson for visualizing the grouped data is fast, resolution independet (vector) and still interactive (clickable, hover, etc.).
+
+By using SQLs basic grouping function we can scale this method from a couple thousand points to the limits of your sql-database.
+
 ## Setup
 
 ### Requirements
