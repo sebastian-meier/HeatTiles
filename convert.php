@@ -2,10 +2,13 @@
 
 require_once("config_local.php");
 
+//Pagination
 if(!isset($_SESSION["last_id"])){
 	$_SESSION["last_id"] = 0;
 }
 
+//Receive the database size for pagination
+//And store it in the session for performance
 if(!isset($_SESSION["db_size"])){
 	$sql = 'SELECT COUNT(*) FROM `'.$db_table.'`';
 	$result = sql_request($sql, false);
@@ -97,6 +100,7 @@ if($step==0){
 				$row[$db_lng] = 360 + $row[$db_lng];
 			}
 	    	
+	    	//Coordinate Conversion
 	    	$latlon = ToWebMercator($row[$db_lat], $row[$db_lng]);
 	    	$msql .= 'INSERT INTO `'.$db_conversion_table.'` (`x`, `y`, `x0`, `y0`, `ref_id`)VALUES('.$latlon[1].', '.$latlon[0].', '.($latlon[1]+$max).', '.($latlon[0]+$max).', '.$row[$db_id].');';
 
@@ -148,7 +152,7 @@ if($step==0){
 				$y = ceil($row["y0"]/$step_size[($zoom_max-1)-$i]);
 				$cell = (($y-1)*$steps[($zoom_max-1)-$i]+$x); //-1
 
-				//offset tiles (hex tiles 50% y-offset)
+				//offset tiles (hex tiles 50% y-offset on even rows)
 				$y = ceil($row["y0"]/$step_size[($zoom_max-1)-$i]);
 				if($y%2){
 					$x = ceil(($row["x0"]+$step_size[($zoom_max-1)-$i]/2)/$step_size[($zoom_max-1)-$i]);
@@ -225,6 +229,8 @@ if($step==0){
 		}
 	}
 
+//This sql request is creating summaries by grouping grid-cells on every zoom level and findind max/min/... within those groups
+//If time and/or multi is activated the grouping is done for every timeframe/subset
 	$sql = "SELECT";
 	
 	if($time){
@@ -327,6 +333,12 @@ if($step==0){
 					$time = $row["time"];
 				}
 				if(($key != "time")&&($key != "id")){
+					//The results are now stored in the meta table
+					//zoom
+					//key holds the attribute
+					//value
+					//ref_id is for multiple datasets in one table
+					//time
 					$msql .= 'INSERT INTO `'.$db_max_table.'` (`zoom`, `value`, `key`, `ref_id`, `time`)VALUES('.($page+$zoom_min).', '.$value.', "'.$key.'", '.$id.', '.$time.');';
 					if(strlen($msql)>(1048576*0.75)){
 						array_push($msqls, $msql);
@@ -417,6 +429,7 @@ if($step==0){
 				do {
 					if($result = $mysqli->store_result()){
 						while ($row = $result->fetch_assoc()){
+							//time = -1 marks the timing overview metadata
 							$msql .= 'INSERT INTO `'.$db_max_table.'` (`zoom`, `value`, `key`, `ref_id`, `time`)VALUES('.$row["zoom"].', '.$row["calc_value"].', "'.$row["key"].'", '.$row["ref_id"].', -1);';
 
 							if(strlen($msql)>(1048576*0.75)){

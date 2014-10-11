@@ -58,7 +58,7 @@ $message = false;
 
 /*------------------- ZOOM LEVEL DATA -------------------*/
 
-$zoom_min = 1;
+$zoom_min = 0;
 $zoom_max = 21;
 
 //The data is rasterized into a tiled grid
@@ -87,8 +87,6 @@ $time_col = "NAME OF THE COLUMN WITH THE TIME REFERENCE";
 //You need to have another database table at hand that holds unique identifiers to filter the main location database
 
 $multiple = true;
-$multiple_db = "NAME OF DATABASE";
-$multiple_id_col = "NAME OF COLUMN WITH UNIQUE IDENTIFIERS WITHIN MULTIPLE_DB";
 $multiple_ref_col = "NAME OF COLUMN WITH UNIQUE IDENTIFIERS WITHIN DB_TABLE";
 
 /*------------------- GROUPING / CLUSTERING -------------------*/
@@ -190,6 +188,24 @@ function refValues($arr){
         }
 
         return $refs; 
+}
+
+function exec_multi($query){
+    global $mysqli;
+    if ($mysqli->multi_query($query)) {
+        do {
+            if (!$mysqli->more_results()) {
+                break;
+            }
+            if (!$mysqli->next_result()) {
+                printf("Error: %s\n", $mysqli->error);
+                exit();
+            }
+        } while (true);
+    }else{
+        printf("Error: %s\n", $mysqli->error);
+        exit();
+    }
 }
 
 /*------------------- CONVERSION FUNCTIONS -------------------*/
