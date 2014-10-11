@@ -69,20 +69,13 @@ if($step==0){
 
 	$sql .= 'UNIQUE ( `ref_id` ))';
 
-	$result = sql_request($sql, false);
-	if(!$result){
-		printf("Error: %s\n", $mysqli->error);
-		exit();
-	}
+	sql_request($sql, false);
 
 	$result = sql_request('TRUNCATE TABLE `'.$db_conversion_table.'`', false);
 	if($result){
 		$_SESSION["last_id"] = 0;
 		$message .= 'Datebase was successfully created!<br />';
 		$message .= '<a href="convert.php?step=2">Continue</a>';
-	}else{
-		printf("Error: %s\n", $mysqli->error);
-		exit();
 	}
 
 }else if($step==2){
@@ -214,19 +207,12 @@ if($step==0){
 
 	if($page < 1){
 		$sql = 'CREATE TABLE IF NOT EXISTS `'.$db_max_table.'` (`id` int(11) NOT NULL AUTO_INCREMENT, `ref_id` int(11) NOT NULL, `time` int(11) NOT NULL, `zoom` int(11) NOT NULL, `key` text NOT NULL, `value` DOUBLE(21,12) NULL, PRIMARY KEY (`id`))';
-		$result = sql_request($sql, false);
-		if(!$result){
-			printf("Error: %s\n", $mysqli->error);
-			exit();
-		}
+		sql_request($sql, false);
 
 	//Clear Database
 		$sql = 'TRUNCATE TABLE `'.$db_max_table;
-		$result = sql_request($sql, false);
-		if(!$result){
-			printf("Error: %s\n", $mysqli->error);
-			exit();
-		}
+		sql_request($sql, false);
+
 	}
 
 //This sql request is creating summaries by grouping grid-cells on every zoom level and findind max/min/... within those groups

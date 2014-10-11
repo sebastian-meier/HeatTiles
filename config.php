@@ -56,14 +56,31 @@ set_time_limit(30000);
 $redirect = false;
 $message = false;
 
+/*------------------- VISUALIZATION DATA -------------------*/
+
+//The data is rasterized into a tiled grid
+//The tile-size in zoom-level "0" is set here:
+$gridsize = 2.5;
+
+//For the visualization you need to choose if you want to cluster locations similar to marker clusters
+//Or create a value based clustering, this requires that you have $cluster_value_col defined and the according grouping functions
+//$vis_type defines which data is displayed in the visualization
+//"value" value based
+//"location" location clustering
+$vis_type = "location";
+
+//The color range that should be applied to the data range
+//This array also defines the range-size: count($colors)
+$colors = array("0a109a","2c4dac","3e7eba","5ea8c0","98cebc","fbea9c","ffbf54","ff951a","f16a0f","da3203","b91b03","b91b03");
+
 /*------------------- ZOOM LEVEL DATA -------------------*/
 
 $zoom_min = 0;
 $zoom_max = 21;
 
-//The data is rasterized into a tiled grid
-//The tile-size in zoom-level "0" is set here:
-$gridsize = 2.5;
+//The visualizations have the option to deliver individual marker data at a specific zoom level
+//If you always want to have heatmaps, keep zoom_single to 99
+$zoom_single = 99;
 
 //Based on the gridsize the higher zoom-levels
 //can be calculated automatically, as every
@@ -174,6 +191,13 @@ function sql_request($request, $requestArray){
 
         $result = $stmt->get_result();
 
+    }
+
+    if(!$result){
+        printf("Error: %s\n", $mysqli->error);
+        //To make sure big data conversion don't pile up errors we will exit upon the first error
+        //If for some reason you know what you are doing, remove the exit();
+        exit();
     }
 
     return($result);
