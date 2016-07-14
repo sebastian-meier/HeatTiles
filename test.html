@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Leaflet GeoJSON Example</title>
+	<meta charset="utf-8" />
+
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+	<script src="//code.jquery.com/jquery-1.12.0.min.js"></script>
+	<style type="text/css">
+		body,html{
+			width:100%;
+			height:100%;
+			margin:0;
+			padding:0;
+		}
+
+		#map{
+			width:100%;
+			height:100%;
+		}
+	</style>
+</head>
+<body>
+	<div id="map"></div>
+
+	<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+	<script src="examples/js/proj4js-compressed.js"></script>
+	<script src="examples/js/proj4leaflet.js"></script>
+
+	<script>
+		var map = L.map('map').setView([51.506767, -0.126323], 15);
+
+		L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6IjZjNmRjNzk3ZmE2MTcwOTEwMGY0MzU3YjUzOWFmNWZhIn0.Y8bhBaUMqFiPrDRW9hieoQ', {
+			maxZoom: 18,
+			attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+				'<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+				'Imagery © <a href="http://mapbox.com">Mapbox</a>',
+			id: 'mapbox.light'
+		}).addTo(map);
+
+		var layer = L.layerGroup();
+    	layer.addTo(map);
+
+    	/*$.ajax({
+			dataType: "json",
+			url: "extent.json",
+			success: function(data) {
+				var xmin = Number.MAX_VALUE;
+				var ymin = Number.MAX_VALUE;
+				var xmax = -Number.MAX_VALUE;
+				var ymax = -Number.MAX_VALUE;
+
+				for(var t1 in data){
+					for(var t2 in data[t1]){
+						for(var t3 in data[t1][t2]){
+							if(xmin > data[t1][t2][t3].extent.xmin){xmin = data[t1][t2][t3].extent.xmin;}
+							if(ymin > data[t1][t2][t3].extent.ymin){ymin = data[t1][t2][t3].extent.ymin;}
+							if(xmax < data[t1][t2][t3].extent.xmax){xmax = data[t1][t2][t3].extent.xmax;}
+							if(ymax < data[t1][t2][t3].extent.ymax){ymax = data[t1][t2][t3].extent.ymax;}
+						}
+					}
+				}
+
+			}
+		}).error(function() {});*/
+
+		L.marker([51.2790555712733, -0.550375]).addTo(map);
+		L.marker([51.6993480463764, 0.3440155]).addTo(map);				
+
+		Proj4js.defs["SR-ORG:7483"] = "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs";
+
+		//http://localhost:10060/heattiles/hex/12/51.692322/51.286839/-0.51035/0.33403.geojson
+
+		//map.on('zoomend', function(e){ setHeatmap(); });
+		//map.on('dragend', function(e){ setHeatmap(); });
+		//map.on('moveend', function(e){ setHeatmap(); });
+
+		var progress = false;
+
+		function setHeatmap(){
+			if(!progress){
+				progress = true;
+				var bounds = map.getBounds();
+				$.ajax({
+					dataType: "json",
+					url: "http://localhost:10060/heattiles/hex/"+map.getZoom()+"/"+bounds.getNorthEast().lat+"/"+bounds.getSouthWest().lat+"/"+bounds.getNorthEast().lng+"/"+bounds.getSouthWest().lng+".geojson",
+					success: function(data) {
+						layer.clearLayers();
+					    data.forEach(function(e,i,a){
+							L.Proj.geoJson(e, {
+								style: function (feature) {
+									//console.log(feature.properties.style);
+									return feature.properties && feature.properties.style;
+								}
+							}).addTo(layer);
+						});
+						progress = false;
+					}
+				}).error(function() {});
+			}
+		}
+
+		setHeatmap();
+
+	</script>
+</body>
+</html>

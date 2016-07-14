@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+body,html{margin:0;padding:0;width:100%;height:100%;}
+#map{width:100%;height:100%;}
+#playbarcontainer{position:fixed;bottom:0;padding:0;width:100%;margin:0;background:rgba(255,255,255,0.7);}
+#playbar{height:70px;margin:20px;padding:0;}
+#playbar svg{width:100%;height:70px;}
+</style>
+<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.1/leaflet.css" />
+</head>
+<body>
+<div id="map"></div>
+<script src="http://cdn.leafletjs.com/leaflet-0.7.1/leaflet.js"></script>
+<script src="http://code.jquery.com/jquery-2.0.3.min.js"></script>
+<script src="../examples/js/proj4js-compressed.js"></script>
+<script src="../examples/js/proj4leaflet.js"></script>
+<script src="../examples/js/fn.js"></script>
+<script type="text/javascript">
+
+if(!localStorage.getItem("count")){
+	localStorage.setItem("count", 0);
+}
+
+//Array of our earthquakes, actually we just use this to center our map over the earthquake
+var quakes = [
+	["PAK-ASC", "up2013ueba", "2013-10-15 00:12:35", 9.786595, 124.075],
+	["PAK", "up2013ssol", "2013-09-24 11:29:48", 26.9424, 65.4466],
+	["PAKISTAN", "up2013ueba", "2013-10-15 00:12:35", 9.786595, 124.075],
+	["SEA-OF-OKHOTSK", "up2013kbnw", "2013-05-24 05:44:45", 54.893, 153.136],
+	["SOUTH-IRAN-2", "up2013hknw", "2013-04-16 10:44:11", 27.9611, 62.0207],
+	["SOUTH-OF-FIJI-ISLANDS", "up2013kapj", "2013-05-23 17:19:03", -23.0366, -177.259]
+];
+
+//which quake frome the array above do we want to show
+var quake_id = 1;
+
+var maxSets = 132;
+
+var frames = [];
+
+var first = true;
+
+var timestamp;
+var avrg_speed = 0;
+var avrg_size = 0;
+var d = new Date();
+var start = d.getTime();
+var min_frame_load = 20;
+var animated = false;
+var max_frame_load = 132;
+
+var stats = [];
+
+function optimizeCoords(coordArray){
+	//Longitude Correction
+	if(coordArray[0]<-180){
+		coordArray[0]=360+coordArray[0];
+	}else if(coordArray[0]>180){
+		coordArray[0]=(-360+coordArray[0]);
+	}
+
+	//Latitude Correction
+	if(coordArray[1]<-90){
+		coordArray[1]=180+coordArray[1];
+	}else if(coordArray[1]>90){
+		coordArray[1]=(-180+coordArray[1]);
+	}
+
+	return coordArray;
+}
+
+$(document).ready(function() {
+    map = L.map('map', { worldCopyJump: true }).setView([quakes[quake_id][3], quakes[quake_id][4]], 6);
+	Proj4js.defs["SR-ORG:7483"] = "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs";
+
+	//Get the boundaries of the current map. We will use this square for our query to the database.
+	var bounds = map.getBounds();
+
+	//The boundaries are converted to our coordinate system
+	var neA = optimizeCoords([bounds.getNorthEast().lng, bounds.getNorthEast().lat]);
+	var ne = ToWebMercator(neA[0], neA[1]);
+	var swA = optimizeCoords([bounds.getSouthWest().lng, bounds.getSouthWest().lat]);
+	var sw = ToWebMercator(swA[0], swA[1]);
+
+	//For faster queries we using a positive only coordinate system 
+	ne[0]+=20037508; 
+	ne[1]+=20037508;
+
+	sw[0]+=20037508;
+	sw[1]+=20037508;
+
+	//Just for readability we store the variables in x/y min/max variables
+	min_x = sw[0];
+	max_x = ne[0];
+
+	min_y = sw[1];
+	max_y = ne[1];
+
+	//based on the dataset you want to visualize, the zoom level and the boundaries we will request a heatmap
+	var trequest = "../provider/deliver.php?zoom="+map.getZoom()+"&min_y="+min_y+"&max_y="+max_y+"&min_x="+min_x+"&max_x="+max_x+"&vis=square&vis_type=value_max&time=all&ref_id="+(quake_id+1);
+
+	var zeit = new Date();
+	timestamp = zeit.getTime();
+	stats.push(zeit.getTime());
+
+	var eventSource = new EventSource(trequest);
+    eventSource.onmessage = function(event){
+    	//Calculation of the average time and size of heatmap request
+    	if(first){
+    		first = false;
+    		var zeit = new Date();
+			stats.push(zeit.getTime());
+    	}
+		var zeit = new Date();
+		var diff = event.data.length / (zeit.getTime()-timestamp);
+		avrg_speed = (avrg_speed*frames.length + diff)/(frames.length+1);
+		avrg_size = (avrg_size*frames.length + event.data.length)/(frames.length+1);
+		if(
+			//We wait until at least "min_frame_load" are loaded to make sure the calculated average is more precise
+			(frames.length > min_frame_load)&&
+			//Make sure the animation did not already start
+			(!animated)&&
+			//Here we calculate the time left to load the whole animation. If the time left is smaller than the time required to play the whole movie we autostart the movie.
+			( 
+				(max_frame_load*100) > ((max_frame_load-frames.length)*avrg_speed*1.1)
+			)){
+
+			var zeit = new Date();
+			stats.push(zeit.getTime());
+
+			animated=true;
+		}
+
+		frames.push(jQuery.parseJSON(event.data));
+
+    	if(event.lastEventId>=maxSets-1){
+    		eventSource.close();
+
+			var zeit = new Date();
+			stats.push(zeit.getTime());
+			
+			var count = localStorage.getItem("count");
+			count++;
+			localStorage.setItem("count", count);
+			localStorage.setItem("data_"+count, stats);
+
+			console.log(stats);
+
+			if(count<20){
+				location.reload();
+			}
+    	}
+    };
+
+});
+
+		</script>
+	</body>
+</html>

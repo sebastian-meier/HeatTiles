@@ -24,7 +24,7 @@ if(!isset($_SESSION["db_size"])){
 }
 
 if(isset($_GET["step"])){$step = $_GET["step"];}else{$step = 0;}
-if(isset($_GET["page"])){$page = $_GET["page"];}else{$page = 1;}
+if(isset($_GET["page"])){$page = $_GET["page"];}else{$page = 0;}
 
 if($step==0){
 	$message .= 'Welcome to the data conversion and rasterization.<br />';
@@ -85,7 +85,7 @@ if($step==0){
 	$end = false;
 	$msql = '';
 	$msqls = array();
-	$sql = 'SELECT `'.$db_id.'`, `'.$db_lat.'`, `'.$db_lng.'` FROM `'.$db_table.'` WHERE `ref_id` > '.$_SESSION["last_id"].' ORDER BY `'.$db_id.'` ASC LIMIT '.$db_max;
+	$sql = 'SELECT `'.$db_id.'`, `'.$db_lat.'`, `'.$db_lng.'` FROM `'.$db_table.'` WHERE `'.$db_id.'` > '.$_SESSION["last_id"].' ORDER BY `'.$db_id.'` ASC LIMIT '.$db_max;
 	$result = sql_request($sql, false);
 	if ($result && $result->num_rows >= 1) {
 		while ($row = $result->fetch_assoc()) {
@@ -96,7 +96,7 @@ if($step==0){
 	    	//Coordinate Conversion
 	    	$latlon = ToWebMercator($row[$db_lat], $row[$db_lng]);
 	    	$msql .= 'INSERT INTO `'.$db_conversion_table.'` (`x`, `y`, `x0`, `y0`, `ref_id`)VALUES('.$latlon[1].', '.$latlon[0].', '.($latlon[1]+$max).', '.($latlon[0]+$max).', '.$row[$db_id].');';
-
+	    	$_SESSION["last_id"] = $row[$db_id];
 	    	if(strlen($msql)>(1048576*0.75)){
 				array_push($msqls, $msql);
 				$msql = "";
@@ -347,7 +347,7 @@ if($step==0){
 		exec_multi($msql);		
 	}
 
-	if($page+$zoom_min < $zoom_max){
+	if(($page+$zoom_min) < $zoom_max){
 
 		if($time){
 			//Through the interval we calculated the meta data for every individual time frame

@@ -69,6 +69,10 @@ $gridsize = 2.5;
 //"location" location clustering
 $vis_type = "location";
 
+//Visualization type
+//Available options: square, hex, circle, raw, clustered (raw)
+$vis = "square";
+
 //The color range that should be applied to the data range
 //This array also defines the range-size: count($colors)
 $colors = array("0a109a","2c4dac","3e7eba","5ea8c0","98cebc","fbea9c","ffbf54","ff951a","f16a0f","da3203","b91b03","b91b03");

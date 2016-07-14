@@ -1,0 +1,89 @@
+<html>
+<head>
+<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/paper.js/0.9.18/paper-core.min.js"></script>
+<script type="text/javascript" src="data.js"></script>
+<style type="text/css">
+html,body{margin:0; padding:0;}
+html,body,#container, #c{
+	width:100%;height:100%;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<textarea id="output" cols="10" rows="10"></textarea>
+<script type="text/javascript">
+
+	var canvas = document.getElementById('c');
+	paper.setup(canvas);
+
+	var paths = [];
+
+	var colors = ["red", "black", "green"];
+	var speeds = ["3g","dsl","wifi"];
+	var vis = ["stream","conseq","async"];
+
+	var x = 50;
+	var y = 500;
+	var sx = 100;
+
+	var axis_x = new paper.Path();
+	axis_x.moveTo(x-2.5,y);
+	axis_x.lineTo(347.5,y);
+	axis_x.strokeColor = "black";
+
+	var axis_y = new paper.Path();
+	axis_y.moveTo(x-2.5,y);
+	axis_y.lineTo(x-2.5,50);
+	axis_y.strokeColor = "black";
+
+	var axis_y_r = new paper.Path();
+	axis_y_r.moveTo(x+297.5,y);
+	axis_y_r.lineTo(x+297.5,50);
+	axis_y_r.strokeColor = "black";
+
+	var div_1 = new paper.Path();
+	div_1.moveTo(x+97.5,y);
+	div_1.lineTo(x+97.5,50);
+	div_1.strokeColor = "rgba(0,0,0,0.2)";
+
+	var div_2 = new paper.Path();
+	div_2.moveTo(x+197.5,y);
+	div_2.lineTo(x+197.5,50);
+	div_2.strokeColor = "rgba(0,0,0,0.2)";
+
+	for(var t = 0; t<23; t++){
+		/*new paper.PointText({
+			position : [x+310, y-t*20+3],
+			content :  t*100
+		});*/
+
+		var tick = new paper.Path();
+		tick.moveTo(x-2.5, y-t*20);
+		tick.lineTo(x-12.5, y-t*20);
+		tick.strokeColor = "black";
+	}
+
+	for(var s = 0; s<speeds.length; s++){
+		for(var v = 0; v<vis.length; v++){
+			var path = new paper.Path();
+			path.strokeColor = colors[v];
+			for(var p = 1; p<data[speeds[s]][vis[v]].length; p++){
+				if(p == 1){
+					path.moveTo(new paper.Point(x+s*sx, y-(data[speeds[s]][vis[v]][p][data[speeds[s]][vis[v]][p].length-1]-data[speeds[s]][vis[v]][p][0])/100));
+				}else{
+					path.lineTo(new paper.Point(x+s*sx+p*5, y-(data[speeds[s]][vis[v]][p][data[speeds[s]][vis[v]][p].length-1]-data[speeds[s]][vis[v]][p][0])/100));
+				}
+			}
+			paths.push(path);
+		}
+	}
+
+	$('#output').text(paper.project.exportSVG({asString:true}));
+
+	paper.view.draw();
+
+</script>
+</body>
+</html>
